@@ -142,11 +142,11 @@ public class ClienteServiceImpl implements ClienteService {
     public List<ClienteResponseDTO> getAllClientes(String searchTerm) {
         List<Cliente> clientes;
         if (searchTerm != null && !searchTerm.trim().isEmpty()) {
-            clientes = clienteRepository.searchActivosByTerm(searchTerm.trim());
-            System.out.println("DEBUG: Buscando Clientes con término: '" + searchTerm.trim() + "', Encontrados: " + clientes.size());
+            clientes = clienteRepository.searchByTerm(searchTerm.trim());
+            System.out.println("DEBUG: Buscando en TODOS los Clientes con término: '" + searchTerm.trim() + "', Encontrados: " + clientes.size());
         } else {
-            clientes = clienteRepository.findByEstadoActivoTrue();
-            System.out.println("DEBUG: Obteniendo todos los Clientes activos, Encontrados: " + clientes.size());
+            clientes = clienteRepository.findAll();
+            System.out.println("DEBUG: Obteniendo TODOS los Clientes, Encontrados: " + clientes.size());
         }
         return clientes.stream()
                 .map(this::convertToResponseDto)
@@ -233,6 +233,28 @@ public class ClienteServiceImpl implements ClienteService {
         }
 
         mapRequestDtoToEntity(dto, clienteExistente);
+        Cliente clienteActualizado = clienteRepository.save(clienteExistente);
+        return convertToResponseDto(clienteActualizado);
+    }
+
+    @Override
+    @Transactional
+    public ClienteResponseDTO updateMyProfile(String auth0Id, @Valid ClienteRequestDTO dto) throws Exception {
+        Usuario usuario = usuarioRepository.findByAuth0Id(auth0Id)
+                .orElseThrow(() -> new Exception("Usuario no autenticado correctamente."));
+        Cliente clienteExistente = clienteRepository.findByUsuarioId(usuario.getId())
+                .orElseThrow(() -> new Exception("Perfil de cliente no encontrado."));
+        // Validar que el email no esté en uso por OTRO cliente
+        if (dto.getEmail() != null && !dto.getEmail().equals(clienteExistente.getEmail())) {
+            clienteRepository.findByEmail(dto.getEmail()).ifPresent(c -> {
+                if (!c.getId().equals(clienteExistente.getId())) {
+                    throw new RuntimeException("El email '" + dto.getEmail() + "' ya está registrado por otro cliente.");
+                }
+            });
+        }
+        dto.setUsuarioId(usuario.getId()); // Aseguramos que el usuario asociado no cambie
+        mapRequestDtoToEntity(dto, clienteExistente);
+
         Cliente clienteActualizado = clienteRepository.save(clienteExistente);
         return convertToResponseDto(clienteActualizado);
     }

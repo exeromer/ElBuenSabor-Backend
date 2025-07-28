@@ -25,7 +25,7 @@ public class SucursalServiceImpl implements SucursalService {
     @Autowired private SucursalRepository sucursalRepository;
     @Autowired private EmpresaRepository empresaRepository;
     @Autowired private DomicilioRepository domicilioRepository;
-    @Autowired private LocalidadRepository localidadRepository;
+    @Autowired private DomicilioService domicilioService;
     @Autowired private PromocionRepository promocionRepository;
     @Autowired private CategoriaRepository categoriaRepository;
 
@@ -140,17 +140,6 @@ public class SucursalServiceImpl implements SucursalService {
         }
     }
 
-    private Domicilio createOrUpdateDomicilio(Domicilio existingDomicilio, DomicilioRequestDTO domicilioDto) throws Exception {
-        Localidad localidad = localidadRepository.findById(domicilioDto.getLocalidadId())
-                .orElseThrow(() -> new Exception("Localidad no encontrada con ID: " + domicilioDto.getLocalidadId()));
-
-        Domicilio domicilioToSave = existingDomicilio != null ? existingDomicilio : new Domicilio();
-        domicilioToSave.setCalle(domicilioDto.getCalle());
-        domicilioToSave.setNumero(domicilioDto.getNumero());
-        domicilioToSave.setCp(domicilioDto.getCp());
-        domicilioToSave.setLocalidad(localidad);
-        return domicilioRepository.save(domicilioToSave);
-    }
 
     private void mapDtoToEntity(SucursalRequestDTO dto, Sucursal sucursal, boolean isCreate) throws Exception {
         sucursal.setNombre(dto.getNombre());
@@ -165,7 +154,15 @@ public class SucursalServiceImpl implements SucursalService {
         if (dto.getDomicilio() == null) {
             throw new Exception("Los datos del domicilio son obligatorios.");
         }
-        Domicilio domicilioManaged = createOrUpdateDomicilio(isCreate ? null : sucursal.getDomicilio(), dto.getDomicilio());
+        DomicilioResponseDTO domicilioDtoResult;
+        if (isCreate) {
+            domicilioDtoResult = domicilioService.create(dto.getDomicilio());
+        } else {
+            Integer domicilioId = sucursal.getDomicilio().getId();
+            domicilioDtoResult = domicilioService.update(domicilioId, dto.getDomicilio());
+        }
+        Domicilio domicilioManaged = domicilioRepository.findById(domicilioDtoResult.getId())
+                .orElseThrow(() -> new Exception("Error fatal al procesar el domicilio."));
         sucursal.setDomicilio(domicilioManaged);
 
         List<Categoria> nuevasCategorias = new ArrayList<>();
@@ -236,4 +233,33 @@ public class SucursalServiceImpl implements SucursalService {
         sucursal.setFechaBaja(LocalDate.now());
         sucursalRepository.save(sucursal);
     }
+    @Override
+    @Transactional
+    public SucursalResponseDTO addCategoria(Integer sucursalId, Integer categoriaId) throws Exception {
+        Sucursal sucursal = sucursalRepository.findById(sucursalId)
+                .orElseThrow(() -> new Exception("Sucursal no encontrada con ID: " + sucursalId));
+        Categoria categoria = categoriaRepository.findById(categoriaId)
+                .orElseThrow(() -> new Exception("Categoría no encontrada con ID: " + categoriaId));
+
+        //Verificamos si la categoría ya está asociada a la sucursal
+        boolean yaAsociada = sucursal.getCategorias().stream().anyMatch(cat -> cat.getId().equals(categoriaId));
+        if (yaAsociada) {
+            throw new Exception("La categoría '" + categoria.getDenominacion() + "' ya está asociada a la sucursal '" + sucursal.getNombre() + "'.");
+        }
+        sucursal.getCategorias().add(categoria);
+        sucursalRepository.save(sucursal);
+        return convertToDto(sucursal);
+    }
+
+    // FIX: Implementación del método para desasociar una categoría
+    @Override
+    @Transactional
+    public SucursalResponseDTO removeCategoria(Integer sucursalId, Integer categoriaId) throws Exception {
+        Sucursal sucursal = sucursalRepository.findById(sucursalId)
+                .orElseThrow(() -> new Exception("Sucursal no encontrada con ID: " + sucursalId));
+        sucursal.getCategorias().removeIf(categoria -> categoria.getId().equals(categoriaId));
+        sucursalRepository.save(sucursal);
+        return convertToDto(sucursal);
+    }
+
 }

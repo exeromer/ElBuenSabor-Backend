@@ -15,10 +15,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 @Entity
 @JsonIdentityInfo(
         generator = ObjectIdGenerators.PropertyGenerator.class,
         property = "id")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Factura {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,8 +33,8 @@ public class Factura {
     private LocalDate fechaFacturacion;
 
     // Los campos de MercadoPago son opcionales
-    private Integer mpPaymentId;
-    private Integer mpMerchantOrderId;
+    private Long mpPaymentId;
+    private Long mpMerchantOrderId;
     private String mpPreferenceId;
     private String mpPaymentType;
 
@@ -71,10 +74,10 @@ public class Factura {
     public void setId(Integer id) { this.id = id; }
     public LocalDate getFechaFacturacion() { return fechaFacturacion; }
     public void setFechaFacturacion(LocalDate fechaFacturacion) { this.fechaFacturacion = fechaFacturacion; }
-    public Integer getMpPaymentId() { return mpPaymentId; }
-    public void setMpPaymentId(Integer mpPaymentId) { this.mpPaymentId = mpPaymentId; }
-    public Integer getMpMerchantOrderId() { return mpMerchantOrderId; }
-    public void setMpMerchantOrderId(Integer mpMerchantOrderId) { this.mpMerchantOrderId = mpMerchantOrderId; }
+    public Long getMpPaymentId() { return mpPaymentId; }
+    public void setMpPaymentId(Long mpPaymentId) { this.mpPaymentId = mpPaymentId; }
+    public Long getMpMerchantOrderId() { return mpMerchantOrderId; }
+    public void setMpMerchantOrderId(Long mpMerchantOrderId) { this.mpMerchantOrderId = mpMerchantOrderId; }
     public String getMpPreferenceId() { return mpPreferenceId; }
     public void setMpPreferenceId(String mpPreferenceId) { this.mpPreferenceId = mpPreferenceId; }
     public String getMpPaymentType() { return mpPaymentType; }
